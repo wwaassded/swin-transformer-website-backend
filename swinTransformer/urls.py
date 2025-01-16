@@ -1,0 +1,15 @@
+from django.urls import path
+
+from . import views
+
+app_name = 'swinTransformer'
+
+urlpatterns = [
+    path('login/', views.login, name='login'),  # 用户的登录
+    path('logout/', views.logout, name='logout'),  # 用户的注销
+    path('logup/', views.logup, name='logup'),  # 用户的注册
+    path('upload/', views.upload_file, name='upload'),  # 对用户提交的照片进行处理
+    path('delete/', views.deleteImage, name='delete_image'), #删除指定id的图片对
+    path('download/<str:filename>/', views.download_image, name='download_image'), #下载指定的分割图片
+    path('getImage/<int:page_number>/<int:lines_per_page>', views.get_images_by_page, name='get_images_by_page') #返回图片信息 并提供后端分页功能
+]
