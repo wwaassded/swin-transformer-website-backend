@@ -3,9 +3,6 @@ import subprocess
 from swinTransformer.constant import nginx_image_dir, nginx_image_url_root
 from swinTransformer.constant import swin_transformer, swin_transformer_checkpoint, swin_transformer_working_dir
 
-
-user_cache_dict = {}
-
 def process_image(original_img_name: str) -> str:
     local_original_img_name = nginx_image_dir + original_img_name
     file_name = original_img_name.split('.')

@@ -7,11 +7,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Count
 
-from swinTransformer.constant import nginx_image_dir, nginx_image_url_root
+from swinTransformer.constant import nginx_image_dir, nginx_image_url_root, default_lines_per_page
 from swinTransformer.utils import process_image
-from swinTransformer.utils import user_cache_dict
 
 from swinTransformer.models import User
 from swinTransformer.models import OriginalImage
@@ -88,7 +86,7 @@ def upload_file(request):
     source_image_url = nginx_image_url_root + file.name  # 用户上传照片的url地址
     segmented_image_url = process_image(file.name)  # 分割后的照片的url地址
     try:
-        with transaction.atomic():
+        with (transaction.atomic()):
             if segmented_image_url == '':
                 return JsonResponse({'isSuccessful': False,
                                      'message': 'something wrong in swin Transformer model'
@@ -117,7 +115,16 @@ def upload_file(request):
             可以在 该函数内部操作数据库时 额外查询 COUNT(*)  获取我们需要的数据
             并且 存储在全局的dict中 从而判断用户是否需要经理缓存逻辑
             """
-            cache.delete_pattern('images_page_*')
+            page_number = cache.get(f'{user_id}')
+            if page_number is not None:
+                key = f'{user_id}-{page_number}-{default_lines_per_page}'
+                cached_data = json.loads(cache.get(key) or 'null')
+                if cached_data is not None:
+                    if len(cached_data.get('original_images_list')) != default_lines_per_page:
+                        cache.delete_pattern(key)
+                    else:
+                        cache.set(f'{user_id}', page_number + 1)
+
             return JsonResponse({
                 'isSuccessful': True,
                 'source_image_id': original_image.id,
@@ -125,8 +132,8 @@ def upload_file(request):
                 'segmented_image_url': segmented_image_url,
                 'message': 'success'
             })
-    except Exception as e:
-        return Http404(e)
+    except Exception:
+        return Http404('test')
 
 
 def removeImageFromArray(lst):
@@ -177,7 +184,7 @@ def download_image(request, filename):
 
 @require_http_methods(['GET'])
 @csrf_exempt
-def get_images_by_page(request, page_number=1, lines_per_page=4):
+def get_images_by_page(request, page_number=1, lines_per_page=default_lines_per_page):
     """
     :param request:
     :param page_number: 展示的页数
@@ -190,7 +197,8 @@ def get_images_by_page(request, page_number=1, lines_per_page=4):
                 message: 具体的描述信息
             }
     """
-
+    if lines_per_page != default_lines_per_page:
+        return JsonResponse({'message': 'lines_per_page can only be 4'})
     user_id = json.loads(request.COOKIES.get('identification')).get('id')
     # TODO
     '''  
@@ -211,11 +219,11 @@ def get_images_by_page(request, page_number=1, lines_per_page=4):
                 'message': 'success'
             })
     else:
-        target_original_results = OriginalImage.objects.filter(user_id=user_id).annotate(
-            total_count=Count('id')).values(
-            'image_path',
-            'total_count')[(page_number - 1) * lines_per_page:page_number * lines_per_page]
-        user_cache_dict[f'{user_id}'] = target_original_results.first().get('total_count') / lines_per_page
+        target_original_results = OriginalImage.objects.filter(user_id=user_id).values(
+            'image_path')
+        cache.set(f'{user_id}', len(target_original_results) // lines_per_page + 1)
+        target_original_results = target_original_results[
+                                  (page_number - 1) * lines_per_page:page_number * lines_per_page]
         original_images_list = []
         for result in target_original_results:
             original_images_list.append(result.get('image_path'))
