@@ -80,13 +80,6 @@ WSGI_APPLICATION = 'swin.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -95,6 +88,17 @@ DATABASES = {
         'PASSWORD': '2994899015',
         'HOST': 'localhost',
         'PORT': '3307'
+    }
+}
+
+# redis cache
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:8888/0',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
     }
 }
 
@@ -141,5 +145,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # 设置 session 可以存在的最长时间 默认设置成两天
 SESSION_COOKIE_AGE = 172800
-
-

@@ -4,6 +4,8 @@ from swinTransformer.constant import nginx_image_dir, nginx_image_url_root
 from swinTransformer.constant import swin_transformer, swin_transformer_checkpoint, swin_transformer_working_dir
 
 
+user_cache_dict = {}
+
 def process_image(original_img_name: str) -> str:
     local_original_img_name = nginx_image_dir + original_img_name
     file_name = original_img_name.split('.')
@@ -27,9 +29,3 @@ def swinTransformerHandler(original_image: str, output_image: str) -> int:
                             )
     return result.returncode
 
-# just for tests
-# if __name__ == '__main__':
-#     returncode = swinTransformerHandler(
-#         'D:\\Program Files\\nginx-1.26.2\\nginx-1.26.2\\html\\images\\ADE_train_00003361.jpg',
-#         'D:\\Program Files\\nginx-1.26.2\\nginx-1.26.2\\html\\images\\ADE_train_00003361_segmented.jpg')
-#     print(returncode)
