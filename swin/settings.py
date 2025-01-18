@@ -92,6 +92,11 @@ DATABASES = {
 }
 
 # redis cache
+"""
+所有缓存的键pattern:
+page_cached_key = f'page_cache:{user_id}-{page_number}-{settings.DEFAULT_LINES_PER_PAGE}'
+sort_cached_key = f'sorted_set:{user_id}'
+"""
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
@@ -145,3 +150,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # 设置 session 可以存在的最长时间 默认设置成两天
 SESSION_COOKIE_AGE = 172800
+
+"""
+APP 中需要用到的常量值
+"""
+DEFAULT_LINES_PER_PAGE = 4
+MAX_PAGES_PER_USER = 10
+SWIN_TRANSFORMER = 'swin_transformer.py'

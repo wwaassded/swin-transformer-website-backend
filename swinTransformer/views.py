@@ -2,14 +2,15 @@ import json
 import os
 import time
 
+from swin import settings
 from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.cache import cache
 from django.db import transaction
 
-from swinTransformer.constant import nginx_image_dir, nginx_image_url_root, default_lines_per_page
-from swinTransformer.utils import process_image
+from swinTransformer.constant import nginx_image_dir, nginx_image_url_root
+from swinTransformer.utils import process_image, cache_user_page, get_cached_page,delete_user_page
 
 from swinTransformer.models import User
 from swinTransformer.models import OriginalImage
@@ -108,7 +109,6 @@ def upload_file(request):
                 return JsonResponse({'isSuccessful': False,
                                      'message': 'something wrong in data base'
                                      })
-            # TODO 添加成功 应该对redis的缓存 进行一定的更新
             """
             这里的所影响的缓存一定是 用户的最后一页缓存 所以需要获取到最后一页缓存的 key
             如果需要清除缓存 那么用户一定经历过 get_images_by_page 函数
@@ -117,11 +117,10 @@ def upload_file(request):
             """
             page_number = cache.get(f'{user_id}')
             if page_number is not None:
-                key = f'{user_id}-{page_number}-{default_lines_per_page}'
-                cached_data = json.loads(cache.get(key) or 'null')
+                cached_data = json.loads(get_cached_page(user_id, page_number) or 'null')
                 if cached_data is not None:
-                    if len(cached_data.get('original_images_list')) != default_lines_per_page:
-                        cache.delete_pattern(key)
+                    if len(cached_data.get('original_images_list')) != settings.DEFAULT_LINES_PER_PAGE:
+                        delete_user_page(user_id, page_number)
                     else:
                         cache.set(f'{user_id}', page_number + 1)
 
@@ -148,6 +147,7 @@ def removeImageFromArray(lst):
         print('error on deleting a file', e)
 
 
+# FIXME
 @require_http_methods(['POST'])
 @csrf_exempt
 def deleteImage(request):
@@ -184,7 +184,7 @@ def download_image(request, filename):
 
 @require_http_methods(['GET'])
 @csrf_exempt
-def get_images_by_page(request, page_number=1, lines_per_page=default_lines_per_page):
+def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_LINES_PER_PAGE):
     """
     :param request:
     :param page_number: 展示的页数
@@ -197,7 +197,7 @@ def get_images_by_page(request, page_number=1, lines_per_page=default_lines_per_
                 message: 具体的描述信息
             }
     """
-    if lines_per_page != default_lines_per_page:
+    if lines_per_page != settings.DEFAULT_LINES_PER_PAGE:
         return JsonResponse({'message': 'lines_per_page can only be 4'})
     user_id = json.loads(request.COOKIES.get('identification')).get('id')
     # TODO
@@ -205,9 +205,10 @@ def get_images_by_page(request, page_number=1, lines_per_page=default_lines_per_
         应该使用 redis对数据进行一个缓存
         original_images_list:
         segmented_images_list:
+        这个缓存应该是有限度的缓存 比如说 指定用户最多只能缓存指定的页数
     '''
-    cache_key = f'{user_id}-{page_number}-{lines_per_page}'  # 能够唯一确定一组数据的key
-    cached_str = cache.get(cache_key)
+    # 获取缓存的过程
+    cached_str = get_cached_page(user_id, page_number)
     if cached_str is not None:
         page_data = json.loads(cached_str)
         return JsonResponse(
@@ -240,7 +241,7 @@ def get_images_by_page(request, page_number=1, lines_per_page=default_lines_per_
             'original_images_list': original_images_list,
             'segmented_images_list': segmented_images_list,
         }
-        cache.set(cache_key, json.dumps(caching_dict), 1800)
+        cache_user_page(user_id, page_number, json.dumps(caching_dict))
         return JsonResponse(
             {
                 'isSuccessful': True,
