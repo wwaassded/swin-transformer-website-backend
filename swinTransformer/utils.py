@@ -4,7 +4,7 @@ import time
 from swin import settings
 from swinTransformer.constant import nginx_image_dir, nginx_image_url_root
 from swinTransformer.constant import swin_transformer_checkpoint, swin_transformer_working_dir
-from django.core.cache import cache
+from django_redis import get_redis_connection
 
 
 def process_image(original_img_name: str) -> str:
@@ -32,26 +32,30 @@ def swinTransformerHandler(original_image: str, output_image: str) -> int:
 
 
 def get_cached_page(user_id: int, page_number: int):
+    conn = get_redis_connection('default')
     cached_key = f'page_cache:{user_id}-{page_number}-{settings.DEFAULT_LINES_PER_PAGE}'
-    return cache.get(cached_key)
+    return conn.get(cached_key)
 
 
 def cache_user_page(user_id: int, page_number: int, page_content: str):
     page_cached_key = f'page_cache:{user_id}-{page_number}-{settings.DEFAULT_LINES_PER_PAGE}'
     sort_cached_key = f'sorted_set:{user_id}'
+    conn = get_redis_connection('default')
     current_time = time.time()
-    cache.set(page_cached_key, page_content)
-    cache.zadd(sort_cached_key, {page_number: current_time})
-    page_count = cache.zcard(sort_cached_key)
+    conn.set(page_cached_key, page_content)
+    conn.zadd(sort_cached_key, {page_number: current_time})
+    page_count = conn.zcard(sort_cached_key)
     if page_count > settings.MAX_PAGES_PER_USER:
-        oldest_pages = cache.zrange(sort_cached_key, 0, 0)
+        oldest_pages = conn.zrange(sort_cached_key, 0, 0)
         if oldest_pages is not None:
             oldest_page_number = oldest_pages[0]
-            cache.delete(f'page_cache:{user_id}-{oldest_page_number}-{settings.DEFAULT_LINES_PER_PAGE}')
-            cache.zrem(sort_cached_key, oldest_page_number)
+            conn.delete(f'page_cache:{user_id}-{oldest_page_number}-{settings.DEFAULT_LINES_PER_PAGE}')
+            conn.zrem(sort_cached_key, oldest_page_number)
+
 
 def delete_user_page(user_id: int, page_number: int):
+    conn = get_redis_connection('default')
     page_cached_key = f'page_cache:{user_id}-{page_number}-{settings.DEFAULT_LINES_PER_PAGE}'
     sort_cached_key = f'sorted_set:{user_id}'
-    cache.delete(page_cached_key)
-    cache.zrem(sort_cached_key, page_number)
+    conn.delete(page_cached_key)
+    conn.zrem(sort_cached_key, page_number)
