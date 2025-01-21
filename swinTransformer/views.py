@@ -119,16 +119,19 @@ def upload_file(request):
             考虑引入 消息队列处理 操作失败的情况
             重试多次后仍失败考虑数据库的回滚
             """
-            page_number = get_user_max_page(user_id)
-            if page_number is not None:
-                cached_data = json.loads(get_cached_page(user_id, page_number) or 'null')
-                if cached_data is not None:
-                    if len(cached_data.get('original_images_list')) != settings.DEFAULT_LINES_PER_PAGE:
-                        delete_user_page(user_id, page_number)
-                    else:
-                        # TODO 考虑将设置数字 改写成 加1 减1 是否更加合理
-                        set_user_max_page(user_id, page_number + 1)
-
+            # 缓存更新逻辑
+            total_image_number = get_user_image_number(user_id)
+            # actually total_page_number can never be none
+            if total_image_number is not None:
+                page_number = total_image_number // settings.DEFAULT_LINES_PER_PAGE
+                left_image_number = total_image_number % settings.DEFAULT_LINES_PER_PAGE
+                if left_image_number != 0:
+                    page_number += 1
+                    delete_user_page(user_id, page_number)  # 如果没有缓存 nothing would happen
+                else:
+                    # 当最后一页的image是满的情况下应该是不需要删除缓存的
+                    pass
+                set_user_image_number(user_id, total_image_number + 1)
             return JsonResponse({
                 'isSuccessful': True,
                 'source_image_id': original_image.id,
@@ -136,8 +139,8 @@ def upload_file(request):
                 'segmented_image_url': segmented_image_url,
                 'message': 'success'
             })
-    except Exception:
-        return Http404('test')
+    except Exception as e:
+        return Http404('test', e)
 
 
 def removeImageFromArray(lst):
@@ -162,9 +165,6 @@ def deleteImage(request):
     image_page_number = data.get('image_page_number')
     if original_image_id <= 0:
         return JsonResponse({'isSuccessful': False, 'message': 'original_image_id can not be under 0'})
-    if image_page_number == -1:
-        image_page_number = get_user_max_page(user_id)
-
     # 数据库操作
     target_segmented_image = SegmentedImage.objects.filter(original_image_id=original_image_id)
     if len(target_segmented_image) != 1:
@@ -177,14 +177,22 @@ def deleteImage(request):
     if len(OriginalImage.objects.filter(image_path=target_original_image[0].image_path)) == 1:
         removeImageFromArray(target_original_image)
     target_original_image.delete()
-
     # 删除缓存操作
     """
     如果删除缓存的操作失败 该如何处理
     考虑引入 消息队列处理 操作失败的情况
     重试多次后仍失败考虑数据库的回滚
     """
-    delete_all_page_after_than(user_id, image_page_number)
+    image_number = get_user_image_number(user_id)
+    if image_page_number == -1:
+        # 如果 属于最后一页只需要考虑删除掉最后一页的缓存即可 并不需要遍历zsort
+        last_page = image_number // settings.DEFAULT_LINES_PER_PAGE
+        if image_number % settings.DEFAULT_LINES_PER_PAGE != 0:
+            last_page += 1
+        delete_user_page(user_id, last_page)
+    else:
+        delete_all_page_after_than(user_id, image_page_number)
+    set_user_image_number(user_id, image_number - 1)
     return JsonResponse({'isSuccessful': True, 'message': 'success'})
 
 
@@ -243,7 +251,7 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
     else:
         target_original_results = OriginalImage.objects.filter(user_id=user_id).values(
             'image_path', 'id')
-        max_page_number = len(target_original_results) // lines_per_page + 1
+        all_image_number = len(target_original_results)
         target_original_results = target_original_results[
                                   (page_number - 1) * lines_per_page:page_number * lines_per_page]
         original_images_list = []
@@ -265,7 +273,7 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
             'original_images_list': original_images_list,
             'segmented_images_list': segmented_images_list,
         }
-        cache_user_page(user_id, page_number, json.dumps(caching_dict), max_page_number)
+        cache_user_page(user_id, page_number, json.dumps(caching_dict), all_image_number)
         return JsonResponse(
             {
                 'isSuccessful': True,

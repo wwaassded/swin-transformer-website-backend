@@ -11,13 +11,13 @@ def get_cached_page(user_id: int, page_number: int):
     return conn.get(cached_key)
 
 
-def cache_user_page(user_id: int, page_number: int, page_content: str, max_page_number: int):
+def cache_user_page(user_id: int, page_number: int, page_content: str, all_image_number: int):
     page_cached_key = f'page_cache:{user_id}-{page_number}-{settings.DEFAULT_LINES_PER_PAGE}'
     sort_cached_key = f'sorted_set:{user_id}'
     conn = get_redis_connection('default')
     current_time = time.time()
     conn.set(page_cached_key, page_content)
-    conn.set(f'{user_id}', max_page_number)
+    conn.set(f'{user_id}', all_image_number)
     conn.zadd(sort_cached_key, {page_number: current_time})
     page_count = conn.zcard(sort_cached_key)
     if page_count > settings.MAX_PAGES_PER_USER:
@@ -36,20 +36,20 @@ def delete_user_page(user_id: int, page_number: int):
     conn.zrem(sort_cached_key, page_number)
 
 
-def get_user_max_page(user_id: int):
+def get_user_image_number(user_id: int):
     conn = get_redis_connection('default')
     page_number_key = f'{user_id}'
-    page_number = conn.get(page_number_key)
-    if page_number is None:
-        page_number = len(OriginalImage.objects.filter(user_id=user_id) or []) // settings.DEFAULT_LINES_PER_PAGE + 1
-        conn.set(page_number_key, page_number)
-    return page_number
+    image_number = conn.get(page_number_key)
+    if image_number is None:
+        image_number = len(OriginalImage.objects.filter(user_id=user_id) or [])
+        conn.set(page_number_key, image_number)
+    return image_number
 
 
-def set_user_max_page(user_id: int, max_page: int):
+def set_user_image_number(user_id: int, image_number: int):
     conn = get_redis_connection('default')
     page_number_key = f'{user_id}'
-    conn.set(page_number_key, max_page)
+    conn.set(page_number_key, image_number)
 
 
 def delete_all_page_after_than(user_id: int, page_number: int):
