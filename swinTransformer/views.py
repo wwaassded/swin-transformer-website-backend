@@ -1,16 +1,14 @@
 import json
 import os
-import time
 
-from swin import settings
 from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.core.cache import cache
 from django.db import transaction
 
-from swinTransformer.constant import nginx_image_dir, nginx_image_url_root
-from swinTransformer.utils import process_image, cache_user_page, get_cached_page,delete_user_page
+from swinTransformer.tools.constant import nginx_image_dir, nginx_image_url_root
+from swinTransformer.tools.utils import process_image
+from swinTransformer.tools.cache import *
 
 from swinTransformer.models import User
 from swinTransformer.models import OriginalImage
@@ -115,14 +113,21 @@ def upload_file(request):
             可以在 该函数内部操作数据库时 额外查询 COUNT(*)  获取我们需要的数据
             并且 存储在全局的dict中 从而判断用户是否需要经理缓存逻辑
             """
-            page_number = cache.get(f'{user_id}')
+
+            """
+            如果删除缓存的操作失败 该如何处理
+            考虑引入 消息队列处理 操作失败的情况
+            重试多次后仍失败考虑数据库的回滚
+            """
+            page_number = get_user_max_page(user_id)
             if page_number is not None:
                 cached_data = json.loads(get_cached_page(user_id, page_number) or 'null')
                 if cached_data is not None:
                     if len(cached_data.get('original_images_list')) != settings.DEFAULT_LINES_PER_PAGE:
                         delete_user_page(user_id, page_number)
                     else:
-                        cache.set(f'{user_id}', page_number + 1)
+                        # TODO 考虑将设置数字 改写成 加1 减1 是否更加合理
+                        set_user_max_page(user_id, page_number + 1)
 
             return JsonResponse({
                 'isSuccessful': True,
@@ -147,14 +152,20 @@ def removeImageFromArray(lst):
         print('error on deleting a file', e)
 
 
-# FIXME
+# TODO:可能会需要提供所删除图片所属的页面
 @require_http_methods(['POST'])
 @csrf_exempt
 def deleteImage(request):
     data = json.loads(request.body)
+    user_id = json.loads(request.COOKIES.get('identification')).get('id')
     original_image_id = data.get('original_image_id')
+    image_page_number = data.get('image_page_number')
     if original_image_id <= 0:
         return JsonResponse({'isSuccessful': False, 'message': 'original_image_id can not be under 0'})
+    if image_page_number == -1:
+        image_page_number = get_user_max_page(user_id)
+
+    # 数据库操作
     target_segmented_image = SegmentedImage.objects.filter(original_image_id=original_image_id)
     if len(target_segmented_image) != 1:
         return JsonResponse({'isSuccessful': False, 'message': 'something wrong in data base'})
@@ -166,6 +177,14 @@ def deleteImage(request):
     if len(OriginalImage.objects.filter(image_path=target_original_image[0].image_path)) == 1:
         removeImageFromArray(target_original_image)
     target_original_image.delete()
+
+    # 删除缓存操作
+    """
+    如果删除缓存的操作失败 该如何处理
+    考虑引入 消息队列处理 操作失败的情况
+    重试多次后仍失败考虑数据库的回滚
+    """
+    delete_all_page_after_than(user_id, image_page_number)
     return JsonResponse({'isSuccessful': True, 'message': 'success'})
 
 
@@ -192,6 +211,7 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
     :return: JsonResponse--- {
                 isSuccessful: 处理是否成功
                 isCached: 是否是redis缓存中获取的数据
+                original_id_list: 分割前图片的id数组
                 original_images_list: 分割前的图片数组
                 segmented_images_list: 分割后的图片数组
                 message: 具体的描述信息
@@ -215,19 +235,22 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
             {
                 'isSuccessful': True,
                 'isCached': True,
+                'original_id_list': page_data.get('original_id_list'),
                 'original_images_list': page_data.get('original_images_list'),
                 'segmented_images_list': page_data.get('segmented_images_list'),
                 'message': 'success'
             })
     else:
         target_original_results = OriginalImage.objects.filter(user_id=user_id).values(
-            'image_path')
-        cache.set(f'{user_id}', len(target_original_results) // lines_per_page + 1)
+            'image_path', 'id')
+        max_page_number = len(target_original_results) // lines_per_page + 1
         target_original_results = target_original_results[
                                   (page_number - 1) * lines_per_page:page_number * lines_per_page]
         original_images_list = []
+        original_id_list = []
         for result in target_original_results:
             original_images_list.append(result.get('image_path'))
+            original_id_list.append(result.get('id'))
         if len(original_images_list) == 0:
             return JsonResponse({'isSuccessful': False, 'message': 'no data anymore'})
         target_segmented_images = SegmentedImage.objects.filter(user_id=user_id).values('image_path')[
@@ -238,14 +261,16 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
         if len(segmented_images_list) == 0:
             return JsonResponse({'isSuccessful': False, 'message': 'something wrong in the database'})
         caching_dict = {
+            'original_id_list': original_id_list,
             'original_images_list': original_images_list,
             'segmented_images_list': segmented_images_list,
         }
-        cache_user_page(user_id, page_number, json.dumps(caching_dict))
+        cache_user_page(user_id, page_number, json.dumps(caching_dict), max_page_number)
         return JsonResponse(
             {
                 'isSuccessful': True,
                 'isCached': False,
+                'original_id_list': original_id_list,
                 'original_images_list': original_images_list,
                 'segmented_images_list': segmented_images_list,
                 'message': 'success'

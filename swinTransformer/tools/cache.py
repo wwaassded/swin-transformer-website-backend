@@ -1,34 +1,8 @@
-import subprocess
 import time
 
 from swin import settings
-from swinTransformer.constant import nginx_image_dir, nginx_image_url_root
-from swinTransformer.constant import swin_transformer_checkpoint, swin_transformer_working_dir
 from django_redis import get_redis_connection
-
-
-def process_image(original_img_name: str) -> str:
-    local_original_img_name = nginx_image_dir + original_img_name
-    file_name = original_img_name.split('.')
-    local_segmented_img_file_name = file_name[0] + '_segmented' + '.' + file_name[1]
-    local_segmented_img_name = nginx_image_dir + local_segmented_img_file_name
-    code = swinTransformerHandler(local_original_img_name, local_segmented_img_name)
-    if code == 0:
-        segmented_image_url = nginx_image_url_root + local_segmented_img_file_name
-        return segmented_image_url
-    else:
-        return ''
-
-
-def swinTransformerHandler(original_image: str, output_image: str) -> int:
-    result = subprocess.run(['python',
-                             settings.SWIN_TRANSFORMER,
-                             '--checkpoint', swin_transformer_checkpoint,
-                             '--img', original_image,
-                             '--outfile', output_image],
-                            cwd=swin_transformer_working_dir
-                            )
-    return result.returncode
+from swinTransformer.models import OriginalImage
 
 
 def get_cached_page(user_id: int, page_number: int):
@@ -37,12 +11,13 @@ def get_cached_page(user_id: int, page_number: int):
     return conn.get(cached_key)
 
 
-def cache_user_page(user_id: int, page_number: int, page_content: str):
+def cache_user_page(user_id: int, page_number: int, page_content: str, max_page_number: int):
     page_cached_key = f'page_cache:{user_id}-{page_number}-{settings.DEFAULT_LINES_PER_PAGE}'
     sort_cached_key = f'sorted_set:{user_id}'
     conn = get_redis_connection('default')
     current_time = time.time()
     conn.set(page_cached_key, page_content)
+    conn.set(f'{user_id}', max_page_number)
     conn.zadd(sort_cached_key, {page_number: current_time})
     page_count = conn.zcard(sort_cached_key)
     if page_count > settings.MAX_PAGES_PER_USER:
@@ -59,3 +34,31 @@ def delete_user_page(user_id: int, page_number: int):
     sort_cached_key = f'sorted_set:{user_id}'
     conn.delete(page_cached_key)
     conn.zrem(sort_cached_key, page_number)
+
+
+def get_user_max_page(user_id: int):
+    conn = get_redis_connection('default')
+    page_number_key = f'{user_id}'
+    page_number = conn.get(page_number_key)
+    if page_number is None:
+        page_number = len(OriginalImage.objects.filter(user_id=user_id) or []) // settings.DEFAULT_LINES_PER_PAGE + 1
+        conn.set(page_number_key, page_number)
+    return page_number
+
+
+def set_user_max_page(user_id: int, max_page: int):
+    conn = get_redis_connection('default')
+    page_number_key = f'{user_id}'
+    conn.set(page_number_key, max_page)
+
+
+def delete_all_page_after_than(user_id: int, page_number: int):
+    conn = get_redis_connection('default')
+    sort_cached_key = f'sorted_set:{user_id}'
+    sorted_page_number = conn.zrange(sort_cached_key, 0, -1, withscores=False)
+    if sorted_page_number is not None:
+        for page in sorted_page_number:
+            if page >= page_number:
+                conn.zrem(sort_cached_key, page)
+                page_cached_key = f'page_cache:{user_id}-{page}-{settings.DEFAULT_LINES_PER_PAGE}'
+                conn.delete(page_cached_key)
