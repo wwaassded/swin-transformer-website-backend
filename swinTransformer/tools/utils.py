@@ -1,4 +1,5 @@
 import subprocess
+import time
 
 from swin import settings
 from swinTransformer.tools.constant import nginx_image_dir, nginx_image_url_root
@@ -8,7 +9,7 @@ from swinTransformer.tools.constant import swin_transformer_checkpoint, swin_tra
 def process_image(original_img_name: str) -> str:
     local_original_img_name = nginx_image_dir + original_img_name
     file_name = original_img_name.split('.')
-    local_segmented_img_file_name = file_name[0] + '_segmented' + '.' + file_name[1]
+    local_segmented_img_file_name = file_name[0] + '_segmented' + f'_{time.time()}'+ '.' + file_name[1]
     local_segmented_img_name = nginx_image_dir + local_segmented_img_file_name
     code = swinTransformerHandler(local_original_img_name, local_segmented_img_name)
     if code == 0:
