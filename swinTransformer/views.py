@@ -131,13 +131,14 @@ def upload_file(request):
                 else:
                     # 当最后一页的image是满的情况下应该是不需要删除缓存的
                     pass
-                set_user_image_number(user_id, total_image_number + 1)
+                total_image_number += 1
+                set_user_image_number(user_id, total_image_number)
             return JsonResponse({
                 'isSuccessful': True,
                 'source_image_id': original_image.id,
                 'source_image_url': source_image_url,
                 'segmented_image_url': segmented_image_url,
-                'message': 'success'
+                'message': 'success',
             })
     except Exception as e:
         return Http404('test', e)
@@ -155,7 +156,6 @@ def removeImageFromArray(lst):
         print('error on deleting a file', e)
 
 
-# TODO:可能会需要提供所删除图片所属的页面
 @require_http_methods(['POST'])
 @csrf_exempt
 def deleteImage(request):
@@ -185,15 +185,18 @@ def deleteImage(request):
     """
     image_number = get_user_image_number(user_id)
     if image_page_number == -1:
-        # 如果 属于最后一页只需要考虑删除掉最后一页的缓存即可 并不需要遍历zsort
         last_page = image_number // settings.DEFAULT_LINES_PER_PAGE
         if image_number % settings.DEFAULT_LINES_PER_PAGE != 0:
             last_page += 1
         delete_user_page(user_id, last_page)
     else:
         delete_all_page_after_than(user_id, image_page_number)
-    set_user_image_number(user_id, image_number - 1)
-    return JsonResponse({'isSuccessful': True, 'message': 'success'})
+    image_number -= 1
+    set_user_image_number(user_id, image_number)
+    page_number = image_number // settings.DEFAULT_LINES_PER_PAGE
+    if image_number % settings.DEFAULT_LINES_PER_PAGE:
+        page_number += 1
+    return JsonResponse({'isSuccessful': True, 'message': 'success', 'page_number': page_number})
 
 
 @require_http_methods(['GET'])
@@ -283,3 +286,14 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
                 'segmented_images_list': segmented_images_list,
                 'message': 'success'
             })
+
+
+@require_http_methods(['POST'])
+@csrf_exempt
+def get_max_page_number(request):
+    user_id = json.loads(request.COOKIES.get('identification')).get('id')
+    image_number = get_user_image_number(user_id)
+    page_number = image_number // settings.DEFAULT_LINES_PER_PAGE
+    if image_number % settings.DEFAULT_LINES_PER_PAGE != 0:
+        page_number += 1
+    return JsonResponse({'isSuccessful': True, 'page_number': page_number})

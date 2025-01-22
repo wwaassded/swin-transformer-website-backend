@@ -36,13 +36,15 @@ def delete_user_page(user_id: int, page_number: int):
     conn.zrem(sort_cached_key, page_number)
 
 
-def get_user_image_number(user_id: int):
+def get_user_image_number(user_id: int) -> int:
     conn = get_redis_connection('default')
     page_number_key = f'{user_id}'
-    image_number = conn.get(page_number_key)
-    if image_number is None:
-        image_number = len(OriginalImage.objects.filter(user_id=user_id) or [])
-        conn.set(page_number_key, image_number)
+    bytes_data = conn.get(page_number_key)
+    if bytes_data is None:
+        bytes_data = len(OriginalImage.objects.filter(user_id=user_id) or [])
+        conn.set(page_number_key, bytes_data)
+    str_data = bytes_data.decode('utf-8')
+    image_number = int(str_data)
     return image_number
 
 
@@ -58,6 +60,7 @@ def delete_all_page_after_than(user_id: int, page_number: int):
     sorted_page_number = conn.zrange(sort_cached_key, 0, -1, withscores=False)
     if sorted_page_number is not None:
         for page in sorted_page_number:
+            page = int(page.decode('utf-8'))
             if page >= page_number:
                 conn.zrem(sort_cached_key, page)
                 page_cached_key = f'page_cache:{user_id}-{page}-{settings.DEFAULT_LINES_PER_PAGE}'
