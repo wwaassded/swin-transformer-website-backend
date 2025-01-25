@@ -1,7 +1,7 @@
 import os
 from celery import Celery
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings.py')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'swin.settings')
 
 app = Celery('swin')
 
@@ -10,6 +10,6 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 
-@app.task
+@app.task(bind=True)
 def debug_task(self):
     print(f'Request:{self.request!r}')

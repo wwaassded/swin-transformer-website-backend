@@ -36,7 +36,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'swinTransformer.apps.SwintransformerConfig',
     'rest_framework',
-    'corsheaders'
+    'corsheaders',
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [
@@ -158,7 +159,7 @@ DEFAULT_LINES_PER_PAGE = 4
 MAX_PAGES_PER_USER = 10
 SWIN_TRANSFORMER = 'swin_transformer.py'
 
-CELERY_BROKER_URL = "redis://127.0.01:8888/0"
+CELERY_BROKER_URL = "redis://127.0.0.1:8888/0"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_TASK_TIME_LIMIT = 5
