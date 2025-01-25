@@ -10,6 +10,8 @@ from swinTransformer.tools.constant import nginx_image_dir, nginx_image_url_root
 from swinTransformer.tools.utils import process_image
 from swinTransformer.tools.cache import *
 
+from .tasks import send_custom_email
+
 from swinTransformer.models import User
 from swinTransformer.models import OriginalImage
 from swinTransformer.models import SegmentedImage
@@ -21,7 +23,8 @@ def logup(request):
     new_user_info = json.loads(request.body)
     user_name = new_user_info.get('username')
     password = new_user_info.get('password')
-    new_user = User.objects.create(username=user_name, password=password)
+    email = new_user_info.get('email')
+    new_user = User.objects.create(username=user_name, password=password, email=email)
     if new_user is not None:
         print(new_user)
         return JsonResponse({'isSuccessful': True, 'message': 'success'})
@@ -133,6 +136,13 @@ def upload_file(request):
                     pass
                 total_image_number += 1
                 set_user_image_number(user_id, total_image_number)
+            user: User = User.objects.filter(id=user_id).first()
+            if user is not None:
+                subject = '欢迎使用'
+                template_name = 'work_done_info.html'
+                context = {'username': user.username, 'user_id': user.id}
+                recipient_list = [user.email]
+                send_custom_email.delay(subject, template_name, context, recipient_list)
             return JsonResponse({
                 'isSuccessful': True,
                 'source_image_id': original_image.id,

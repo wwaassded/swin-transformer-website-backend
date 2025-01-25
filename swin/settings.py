@@ -30,6 +30,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'django.contrib.auth',
+    'django.contrib.admin',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -129,6 +130,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
+
 LANGUAGE_CODE = 'zh-hans'
 
 TIME_ZONE = 'Asia/Shanghai'
@@ -136,8 +138,6 @@ TIME_ZONE = 'Asia/Shanghai'
 USE_I18N = True
 
 USE_L10N = True
-
-USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
@@ -161,6 +161,20 @@ SWIN_TRANSFORMER = 'swin_transformer.py'
 
 CELERY_BROKER_URL = "redis://127.0.0.1:8888/0"
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_RESULT_BACKEND = "django-db"
+CELERY_RESULT_BACKEND = "django-cache"
 CELERY_TASK_TIME_LIMIT = 5
 CELERY_WORKER_TASKS_PER_CHILD = 200
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+"""
+gmail 邮箱所需要用到的配置项
+"""
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'wwssd507@gmail.com'
+EMAIL_HOST_PASSWORD = 'vhiemhbkuwbfgtlo'
+DEFAULT_FROM_EMAIL = 'wwssd507@gmail.com'
