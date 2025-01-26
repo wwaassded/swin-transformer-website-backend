@@ -1,7 +1,8 @@
-import json
 import os
+import uuid
 
 from django.http import JsonResponse, HttpResponse, Http404
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
@@ -31,12 +32,16 @@ def logup(request):
     user_name = new_user_info.get('username')
     password = new_user_info.get('password')
     email = new_user_info.get('email')
-    new_user = User.objects.create(username=user_name, password=password, email=email)
-    if new_user is not None:
-        print(new_user)
-        return JsonResponse({'isSuccessful': True, 'message': 'success'})
-    else:
+    verification_token = str(uuid.uuid4())  # 每一个未注册的用户的唯一的验证令牌
+    if not cache_unverified_user(verification_token, user_name, password, email):
         return JsonResponse({'isSuccessful': False, 'message': 'can not create user in data base'})
+    else:
+        subject = '欢迎注册swinTransformer'
+        template_name = 'welcome.html'
+        context = {'username': user_name, 'verify_url': f'http://localhost:8000/verify/{verification_token}'}
+        recipient_list = [email]
+        send_custom_email.delay(subject, template_name, context, recipient_list)
+        return JsonResponse({'isSuccessful': True, 'message': 'now you need to varify your email'})
 
 
 @require_http_methods(['POST'])
@@ -327,5 +332,17 @@ def get_max_page_number(request):
 
 @require_http_methods(['POST'])
 @csrf_exempt
-def verify_user_emil(request):
-    pass
+def verify_user_emil(request, verification_token: str):
+    result = verify_user(verification_token)
+    if result is not None:
+        user_detail_info = json.loads(result)
+        user = User.objects.create(username=user_detail_info.get('username'),
+                                   password=user_detail_info.get('password'),
+                                   email=user_detail_info.get('email')
+                                   )
+        if user is not None:
+            pass  # 成功
+        else:
+            pass  # 失败
+    else:
+        return render(request, 'expired.html', status=404)

@@ -178,3 +178,4 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'wwssd507@gmail.com'
 EMAIL_HOST_PASSWORD = 'vhiemhbkuwbfgtlo'
 DEFAULT_FROM_EMAIL = 'wwssd507@gmail.com'
+EMAIL_VALIDATION_EXPIRE_TIME = 600

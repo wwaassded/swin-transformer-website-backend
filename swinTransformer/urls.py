@@ -14,5 +14,5 @@ urlpatterns = [
     path('getImage/<int:page_number>/<int:lines_per_page>', views.get_images_by_page, name='get_images_by_page'),
     # 返回图片信息 并提供后端分页功能
     path('getPageNumber/', views.get_max_page_number, name='get_page_number'),  # 获取该用户的全部页数
-    path('verify/', views.verify_user_emil, name='verify_user_email'),  # 用于验证用户的邮箱是否属于该用户
+    path('verify/<str:verification_token>', views.verify_user_emil, name='verify_user_email'),  # 用于验证用户的邮箱是否属于该用户
 ]
