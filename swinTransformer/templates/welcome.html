@@ -1,9 +1,8 @@
-<!-- templates/complex_email.html -->
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,6 +10,7 @@
             margin: 0;
             padding: 0;
         }
+
         .container {
             background-color: #ffffff;
             margin: 20px auto;
@@ -19,48 +19,76 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+
         .header {
+            background-image: url("party_popper_color.svg");
             text-align: center;
-            background-color: #007bff;
+            background-color: #4285f4;
+            background-size: cover;
+            background-position: center;
             color: white;
-            padding: 10px 0;
+            padding: 20px 0;
             border-radius: 8px 8px 0 0;
         }
+
+        .header svg {
+            width: 50px;
+            height: 50px;
+            margin-top: 10px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
         .content {
             padding: 20px;
         }
+
         .footer {
             text-align: center;
             font-size: 12px;
             color: #777;
             margin-top: 20px;
         }
+
         .button {
             display: inline-block;
-            background-color: #007bff;
+            background-color: #4285f4;
             color: white;
             padding: 10px 20px;
             margin: 20px 0;
             text-decoration: none;
             border-radius: 5px;
         }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+
+            .content {
+                padding: 10px;
+            }
+        }
     </style>
     <title>欢迎注册</title>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>欢迎注册</h1>
-        </div>
-        <div class="content">
-            <p>亲爱的 {{ username }},</p>
-            <p>感谢您注册我们的平台！我们很高兴您加入我们。</p>
-            <p>请点击下面的按钮来验证您的电子邮件地址：</p>
-            <a href="{{ verify_url }}" class="button">验证邮箱</a>
-        </div>
-        <div class="footer">
-            <p>如果您没有注册此账户，请忽略此邮件。</p>
-        </div>
+<div class="container">
+    <div class="header">
+        <h1>欢迎注册</h1>
     </div>
+    <div class="content">
+        <p>亲爱的 {{ username }},</p>
+        <p>感谢您注册我们的平台！我们很高兴您加入我们。</p>
+        <p>请点击下面的按钮来验证您的电子邮件地址：</p>
+        <a href="{{ verify_url }}" class="button">验证邮箱</a>
+    </div>
+    <div class="footer">
+        <p>如果您没有注册此账户，请忽略此邮件。</p>
+    </div>
+</div>
 </body>
 </html>

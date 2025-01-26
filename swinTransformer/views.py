@@ -20,6 +20,13 @@ from swinTransformer.models import SegmentedImage
 @require_http_methods(['POST'])
 @csrf_exempt
 def logup(request):
+    """
+    :param request:
+    :return:
+    用户注册过程的逻辑如下:
+    将用户的注册信息存储在cache中 并设置合理的过期时间 (配合验证邮件的有效时间)
+    用户通过向指定的url后从cache中获取用户的信息并存储到mysql中完成整个注册逻辑
+    """
     new_user_info = json.loads(request.body)
     user_name = new_user_info.get('username')
     password = new_user_info.get('password')
@@ -35,6 +42,14 @@ def logup(request):
 @require_http_methods(['POST'])
 @csrf_exempt
 def login(request):
+    """
+    :param request:
+    :return:
+    登陆逻辑介绍:
+    登录逻辑比较简单
+    但是需要注意的是用户可能刚刚注册但是并没有验证
+    所以需要先查看cache中的信息如果未验证 需要基于用户一定的提示
+    """
     user_data = json.loads(request.body)
     user_name = user_data.get('username')
     password = user_data.get('password')
@@ -137,6 +152,7 @@ def upload_file(request):
                 total_image_number += 1
                 set_user_image_number(user_id, total_image_number)
             user: User = User.objects.filter(id=user_id).first()
+            # TODO 后续考虑将生成的图片通过邮件对用户进行展示
             if user is not None:
                 subject = '欢迎使用'
                 template_name = 'work_done_info.html'
@@ -307,3 +323,9 @@ def get_max_page_number(request):
     if image_number % settings.DEFAULT_LINES_PER_PAGE != 0:
         page_number += 1
     return JsonResponse({'isSuccessful': True, 'page_number': page_number})
+
+
+@require_http_methods(['POST'])
+@csrf_exempt
+def verify_user_emil(request):
+    pass
