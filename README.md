@@ -2,7 +2,7 @@
 
 ## 后端部分采用django框架+mysql+redis来实现
 
-前端部分参见 https://github.com/wwaassded/swin-transformer-website-fronend
+前端部分参见 https://github.com/wwaassded/swin-transformer-website-frontend
 
 **_current TODO_**
 
