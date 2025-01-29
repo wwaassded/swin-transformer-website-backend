@@ -36,9 +36,10 @@ def logup(request):
     if not cache_unverified_user(verification_token, user_name, password, email):
         return JsonResponse({'isSuccessful': False, 'message': 'can not create user in data base'})
     else:
+        store_user_verification(user_name, password, verification_token)
         subject = '欢迎注册swinTransformer'
         template_name = 'welcome.html'
-        context = {'username': user_name, 'verify_url': f'http://localhost:8000/verify/{verification_token}'}
+        context = {'username': user_name, 'verify_url': f'{settings.DJANGO_ROOT}/verify/{verification_token}'}
         recipient_list = [email]
         send_custom_email.delay(subject, template_name, context, recipient_list)
         return JsonResponse({'isSuccessful': True, 'message': 'now you need to varify your email'})
@@ -58,6 +59,8 @@ def login(request):
     user_data = json.loads(request.body)
     user_name = user_data.get('username')
     password = user_data.get('password')
+    if get_user_verification(user_name, password) is not None:
+        return JsonResponse({'isSuccessful': False, 'isVerification': False, 'message': 'un verification'})
     user = User.objects.filter(username=user_name, password=password).first()
     if user is not None:
         response = JsonResponse({'isSuccessful': True, 'message': 'Login successful'})
@@ -336,13 +339,15 @@ def verify_user_emil(request, verification_token: str):
     result = verify_user(verification_token)
     if result is not None:
         user_detail_info = json.loads(result)
-        user = User.objects.create(username=user_detail_info.get('username'),
-                                   password=user_detail_info.get('password'),
-                                   email=user_detail_info.get('email')
-                                   )
+        user = User.objects.create(
+            username=user_detail_info.get('username'),
+            password=user_detail_info.get('password'),
+            email=user_detail_info.get('email')
+        )
         if user is not None:
-            pass  # 成功
+            return render(request, 'success.html', context={'target_url': settings.FRONTEND_ROOT}, status=200)
         else:
-            pass  # 失败
+            # model 的 create 如何情况下会失败呢
+            return render(request, 'expired.html', status=404)
     else:
         return render(request, 'expired.html', status=404)

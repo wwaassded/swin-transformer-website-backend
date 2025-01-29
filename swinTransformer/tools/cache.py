@@ -86,6 +86,22 @@ def cache_unverified_user(token: str, username: str, password: str, email: str) 
     )
 
 
+def store_user_verification(username: str, password: str, verification: str):
+    conn = get_redis_connection('default')
+    verification_store_key = f'verification:{username}-{password}'
+    return conn.set(
+        verification_store_key,
+        verification,
+        ex=settings.EMAIL_VALIDATION_EXPIRE_TIME
+    )
+
+
+def get_user_verification(username: str, password: str) -> str:
+    conn = get_redis_connection('default')
+    verification_store_key = f'verification:{username}-{password}'
+    return conn.get(verification_store_key)
+
+
 def verify_user(token: str) -> str:
     conn = get_redis_connection('default')
     unverified_user_key = f'unverified:{token}'
