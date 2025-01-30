@@ -108,3 +108,19 @@ def verify_user(token: str) -> str:
     result = conn.get(unverified_user_key)
     # TODO result 的类型需要调试确定一下
     return result
+
+
+def clear_verification(username: str, password: str):
+    """
+    :param username:
+    :param password:
+    用户已经验证过了
+    讲清楚缓存中的无用信息
+    """
+    conn = get_redis_connection('default')
+    verification_store_key = f'verification:{username}-{password}'
+    verification_token = conn.get(verification_store_key)
+    if verification_token is not None:
+        conn.delete(verification_store_key)
+        unverified_user_key = f'unverified:{verification_token}'
+        conn.delete(unverified_user_key)

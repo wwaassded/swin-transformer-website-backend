@@ -179,5 +179,5 @@ EMAIL_HOST_USER = 'wwssd507@gmail.com'
 EMAIL_HOST_PASSWORD = 'vhiemhbkuwbfgtlo'
 DEFAULT_FROM_EMAIL = 'wwssd507@gmail.com'
 EMAIL_VALIDATION_EXPIRE_TIME = 600
-DJANGO_ROOT = 'http://localhost:8000/'
-FRONTEND_ROOT = 'http://localhost:7777/'
+DJANGO_ROOT = 'http://localhost:8000'
+FRONTEND_ROOT = 'http://localhost:7777'
