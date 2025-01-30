@@ -263,3 +263,18 @@ def get_max_page_number(request):
     if image_number % settings.DEFAULT_LINES_PER_PAGE != 0:
         page_number += 1
     return JsonResponse({'isSuccessful': True, 'page_number': page_number})
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def get_images_by_token_and_page(request):
+    """
+    :param request:
+    应该包含用户所提供的 token 用于模糊查找 也许同样需要 redis进行缓存？
+    应该包含指定token的图片对的page页码数
+    TODO: 如何分辨用户的查询页数指的是token查询还是普通的查询
+        1.前端可以查看search框中是否有信息 也许我们的搜索框应该提供一个 删除按钮
+        2.用户点击查询后搜索框失效直到用户点击删除按钮 期间的所有点击均可理解为用户通过token执行查询任务
+    :return:
+    """
+    pass
