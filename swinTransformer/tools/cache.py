@@ -1,3 +1,4 @@
+import json
 import time
 
 from swin import settings
@@ -8,6 +9,9 @@ from swinTransformer.models import OriginalImage
 def get_cached_page(user_id: int, page_number: int):
     conn = get_redis_connection('default')
     cached_key = f'page_cache:{user_id}-{page_number}-{settings.DEFAULT_LINES_PER_PAGE}'
+    sort_cached_key = f'sorted_set:{user_id}'
+    current_time = time.time()
+    conn.zadd(sort_cached_key, {page_number: current_time})  # 更新缓存的页面的score
     return conn.get(cached_key)
 
 
@@ -65,3 +69,58 @@ def delete_all_page_after_than(user_id: int, page_number: int):
                 conn.zrem(sort_cached_key, page)
                 page_cached_key = f'page_cache:{user_id}-{page}-{settings.DEFAULT_LINES_PER_PAGE}'
                 conn.delete(page_cached_key)
+
+
+def cache_unverified_user(token: str, username: str, password: str, email: str) -> bool:
+    conn = get_redis_connection('default')
+    unverified_user_key = f'unverified:{token}'
+    caching_dict = {
+        'username': username,
+        'password': password,
+        'email': email,
+    }
+    return conn.set(
+        unverified_user_key,
+        json.dumps(caching_dict),
+        ex=settings.EMAIL_VALIDATION_EXPIRE_TIME
+    )
+
+
+def store_user_verification(username: str, password: str, verification: str):
+    conn = get_redis_connection('default')
+    verification_store_key = f'verification:{username}-{password}'
+    return conn.set(
+        verification_store_key,
+        verification,
+        ex=settings.EMAIL_VALIDATION_EXPIRE_TIME
+    )
+
+
+def get_user_verification(username: str, password: str) -> str:
+    conn = get_redis_connection('default')
+    verification_store_key = f'verification:{username}-{password}'
+    return conn.get(verification_store_key)
+
+
+def verify_user(token: str) -> str:
+    conn = get_redis_connection('default')
+    unverified_user_key = f'unverified:{token}'
+    result = conn.get(unverified_user_key)
+    # TODO result 的类型需要调试确定一下
+    return result
+
+
+def clear_verification(username: str, password: str):
+    """
+    :param username:
+    :param password:
+    用户已经验证过了
+    讲清楚缓存中的无用信息
+    """
+    conn = get_redis_connection('default')
+    verification_store_key = f'verification:{username}-{password}'
+    verification_token = conn.get(verification_store_key)
+    if verification_token is not None:
+        conn.delete(verification_store_key)
+        unverified_user_key = f'unverified:{verification_token}'
+        conn.delete(unverified_user_key)
