@@ -95,7 +95,8 @@ def upload_file(request):
             if user is not None:
                 subject = '欢迎使用'
                 template_name = 'work_done_info.html'
-                context = {'username': user.username, 'user_id': user.id, 'image': segmented_image_url}
+                context = {'target': f'{settings.FRONTEND_ROOT}/detail', 'username': user.username, 'user_id': user.id,
+                           'image': segmented_image_url}
                 recipient_list = [user.email]
                 send_custom_email.delay(subject, template_name, context, recipient_list)
             return JsonResponse({

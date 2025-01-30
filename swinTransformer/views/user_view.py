@@ -90,7 +90,6 @@ def verify_user_emil(request, verification_token: str):
             email=user_detail_info.get('email')
         )
         if user is not None:
-            # TODO 验证成功后应该将用户的信息从缓存中删除掉
             clear_verification(user.username, user.password)
             return render(request, 'success.html', context={'target_url': settings.FRONTEND_ROOT}, status=200)
         else:
