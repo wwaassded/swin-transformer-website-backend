@@ -210,6 +210,10 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
     cached_str = get_cached_page(user_id, page_number)
     if cached_str is not None:
         page_data = json.loads(cached_str)
+        image_number = get_user_image_number(user_id)
+        page_length = image_number // settings.DEFAULT_LINES_PER_PAGE
+        if image_number % settings.DEFAULT_LINES_PER_PAGE != 0:
+            page_length += 1
         return JsonResponse(
             {
                 'isSuccessful': True,
@@ -217,7 +221,8 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
                 'original_id_list': page_data.get('original_id_list'),
                 'original_images_list': page_data.get('original_images_list'),
                 'segmented_images_list': page_data.get('segmented_images_list'),
-                'message': 'success'
+                'message': 'success',
+                'page_length': page_length,
             })
     else:
         target_original_results = OriginalImage.objects.filter(user_id=user_id).values(
@@ -245,6 +250,10 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
             'segmented_images_list': segmented_images_list,
         }
         cache_user_page(user_id, page_number, json.dumps(caching_dict), all_image_number)
+        image_number = get_user_image_number(user_id)
+        page_length = image_number // settings.DEFAULT_LINES_PER_PAGE
+        if image_number % settings.DEFAULT_LINES_PER_PAGE != 0:
+            page_length += 1
         return JsonResponse(
             {
                 'isSuccessful': True,
@@ -252,7 +261,8 @@ def get_images_by_page(request, page_number=1, lines_per_page=settings.DEFAULT_L
                 'original_id_list': original_id_list,
                 'original_images_list': original_images_list,
                 'segmented_images_list': segmented_images_list,
-                'message': 'success'
+                'message': 'success',
+                'page_length': page_length,
             })
 
 
