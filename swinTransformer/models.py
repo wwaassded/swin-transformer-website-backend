@@ -23,6 +23,12 @@ class OriginalImage(models.Model):
     image_path = models.CharField(max_length=255)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['image_path']),
+        ]
+
     def __str__(self):
         return f'OriginalImage {self.id} for user {self.user.username}'
 

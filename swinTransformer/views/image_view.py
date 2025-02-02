@@ -27,6 +27,8 @@ def upload_file(request):
                 segmented_image_url: 分割后的图片的访问地址
                 message: 具体的描述信息
             }
+            TODO: 将swinTransformer分割图片的过程丢给celery来异步执行 避免耗时操作对主线程造成影响
+            TODO: 前端也应该做出相应的改变如 以轮询的方式判断图片分割是否结束, django应该提供用于判断任务是否完成的api
     """
 
     file = request.FILES['picture']
@@ -265,10 +267,11 @@ def get_max_page_number(request):
     return JsonResponse({'isSuccessful': True, 'page_number': page_number})
 
 
+# TODO 无缓存模式
 @require_http_methods(["POST"])
 @csrf_exempt
 def get_images_by_token_and_page(request):
-    """
+    """ 
     :param request:
     应该包含用户所提供的 token 用于模糊查找 也许同样需要 redis进行缓存？
     应该包含指定token的图片对的page页码数
@@ -277,4 +280,33 @@ def get_images_by_token_and_page(request):
         2.用户点击查询后搜索框失效直到用户点击删除按钮 期间的所有点击均可理解为用户通过token执行查询任务
     :return:
     """
-    pass
+    user_id = json.loads(request.COOKIES.get('identification')).get('id')
+    search_info = json.loads(request.body)
+    search_token = search_info.get('search_token')
+    page_number = search_info.get('page_number')
+    target_images = OriginalImage.objects.filter(user_id=user_id, image_path__icontains=search_token).values(
+        'image_path', 'id')
+    page_length = len(target_images) // settings.DEFAULT_LINES_PER_PAGE
+    if len(target_images) % settings.DEFAULT_LINES_PER_PAGE != 0:
+        page_length += 1
+    target_images = target_images[
+                    (page_number - 1) * settings.DEFAULT_LINES_PER_PAGE:page_number * settings.DEFAULT_LINES_PER_PAGE]
+    target_original_images = []
+    target_original_ids = []
+    for vale in target_images:
+        target_original_images.append(vale.get('image_path'))
+        target_original_ids.append(vale.get('id'))
+    target_images = SegmentedImage.objects.filter(original_image_id__in=target_original_ids).values('image_path')
+    print(len(target_images) == len(target_original_images))
+    target_segmented_images = []
+    for vale in target_images:
+        target_segmented_images.append(vale.get('image_path'))
+    return JsonResponse({
+        'isSuccessful': True,
+        'original_id_list': target_original_ids,
+        'original_images_list': target_original_images,
+        'segmented_images_list': target_segmented_images,
+        'message': 'success',
+        'isEmpty': len(target_original_ids) == 0,
+        'page_number': page_length,
+    })
