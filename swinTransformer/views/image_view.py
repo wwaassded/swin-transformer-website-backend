@@ -1,9 +1,11 @@
+import json
 import os
 
 from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
+from openxlab.model.common.constants import token
 
 from swinTransformer.tools.constant import nginx_image_dir, nginx_image_url_root
 from swinTransformer.tools.utils import process_image
@@ -294,6 +296,19 @@ def get_images_by_token_and_page(request):
     search_info = json.loads(request.body)
     search_token = search_info.get('search_token')
     page_number = search_info.get('page_number')
+    cached_str = get_cached_token_page(user_id, token, page_number)
+    if cached_str is not None:
+        cached_result = json.loads(cached_str)
+        return JsonResponse({
+            'isCached': True,
+            'isSuccessful': True,
+            'original_id_list': cached_result.get('original_id_list'),
+            'original_images_list': cached_result.get('original_images_list'),
+            'segmented_images_list': cached_result.get('segmented_images_list'),
+            'message': 'success',
+            'isEmpty': len(cached_result.get('original_id_list')) == 0,
+            'page_number': cached_result.get('page_number'),
+        })
     target_images = OriginalImage.objects.filter(user_id=user_id, image_path__icontains=search_token).values(
         'image_path', 'id')
     page_length = len(target_images) // settings.DEFAULT_LINES_PER_PAGE
@@ -311,7 +326,15 @@ def get_images_by_token_and_page(request):
     target_segmented_images = []
     for vale in target_images:
         target_segmented_images.append(vale.get('image_path'))
+    result = {
+        'original_id_list': target_original_ids,
+        'original_images_list': target_original_images,
+        'segmented_images_list': target_segmented_images,
+        'page_number': page_length,
+    }
+    cache_token_page(user_id, search_token, page_number, result)
     return JsonResponse({
+        'isCached': False,
         'isSuccessful': True,
         'original_id_list': target_original_ids,
         'original_images_list': target_original_images,
