@@ -5,6 +5,7 @@ from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
+from exceptiongroup import catch
 from openxlab.model.common.constants import token
 
 from swinTransformer.tools.constant import nginx_image_dir, nginx_image_url_root
@@ -279,7 +280,6 @@ def get_max_page_number(request):
     return JsonResponse({'isSuccessful': True, 'page_number': page_number})
 
 
-# TODO 无缓存模式
 @require_http_methods(["POST"])
 @csrf_exempt
 def get_images_by_token_and_page(request):
@@ -309,37 +309,47 @@ def get_images_by_token_and_page(request):
             'isEmpty': len(cached_result.get('original_id_list')) == 0,
             'page_number': cached_result.get('page_number'),
         })
-    target_images = OriginalImage.objects.filter(user_id=user_id, image_path__icontains=search_token).values(
-        'image_path', 'id')
-    page_length = len(target_images) // settings.DEFAULT_LINES_PER_PAGE
-    if len(target_images) % settings.DEFAULT_LINES_PER_PAGE != 0:
-        page_length += 1
-    target_images = target_images[
-                    (page_number - 1) * settings.DEFAULT_LINES_PER_PAGE:page_number * settings.DEFAULT_LINES_PER_PAGE]
-    target_original_images = []
-    target_original_ids = []
-    for vale in target_images:
-        target_original_images.append(vale.get('image_path'))
-        target_original_ids.append(vale.get('id'))
-    target_images = SegmentedImage.objects.filter(original_image_id__in=target_original_ids).values('image_path')
-    print(len(target_images) == len(target_original_images))
-    target_segmented_images = []
-    for vale in target_images:
-        target_segmented_images.append(vale.get('image_path'))
-    result = {
-        'original_id_list': target_original_ids,
-        'original_images_list': target_original_images,
-        'segmented_images_list': target_segmented_images,
-        'page_number': page_length,
-    }
-    cache_token_page(user_id, search_token, page_number, result)
-    return JsonResponse({
-        'isCached': False,
-        'isSuccessful': True,
-        'original_id_list': target_original_ids,
-        'original_images_list': target_original_images,
-        'segmented_images_list': target_segmented_images,
-        'message': 'success',
-        'isEmpty': len(target_original_ids) == 0,
-        'page_number': page_length,
-    })
+    try:
+        with transaction.atomic():
+            target_images = OriginalImage.objects.filter(user_id=user_id, image_path__icontains=search_token).values(
+                'image_path', 'id')
+            page_length = len(target_images) // settings.DEFAULT_LINES_PER_PAGE
+            if len(target_images) % settings.DEFAULT_LINES_PER_PAGE != 0:
+                page_length += 1
+            target_images = target_images[
+                            (
+                                    page_number - 1) * settings.DEFAULT_LINES_PER_PAGE:page_number * settings.DEFAULT_LINES_PER_PAGE]
+            target_original_images = []
+            target_original_ids = []
+            for vale in target_images:
+                target_original_images.append(vale.get('image_path'))
+                target_original_ids.append(vale.get('id'))
+            target_images = SegmentedImage.objects.filter(original_image_id__in=target_original_ids).values(
+                'image_path')
+            print(len(target_images) == len(target_original_images))
+            target_segmented_images = []
+            for vale in target_images:
+                target_segmented_images.append(vale.get('image_path'))
+            result = {
+                'original_id_list': target_original_ids,
+                'original_images_list': target_original_images,
+                'segmented_images_list': target_segmented_images,
+                'page_number': page_length,
+            }
+            cache_token_page(user_id, search_token, page_number, result)
+        return JsonResponse({
+            'isCached': False,
+            'isSuccessful': True,
+            'original_id_list': target_original_ids,
+            'original_images_list': target_original_images,
+            'segmented_images_list': target_segmented_images,
+            'message': 'success',
+            'isEmpty': len(target_original_ids) == 0,
+            'page_number': page_length,
+        })
+    except Exception as e:
+        return JsonResponse({
+            'isCached': False,
+            'isSuccessful': False,
+            'message': str(e),
+        })
