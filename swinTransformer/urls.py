@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import user_view
 from .views import image_view
+from .views import celery_view
 
 app_name = 'swinTransformer'
 
@@ -16,6 +17,8 @@ urlpatterns = [
     # 返回图片信息 并提供后端分页功能
     path('getPageNumber/', image_view.get_max_page_number, name='get_page_number'),  # 获取该用户的全部页数
     path('verify/<str:verification_token>', user_view.verify_user_emil, name='verify_user_email'),  # 用于验证用户的邮箱是否属于该用户
-    path('searchImage/', image_view.get_images_by_token_and_page, name='get_images_by_token_and_page')
+    path('searchImage/', image_view.get_images_by_token_and_page, name='get_images_by_token_and_page'),
     # 通过用户提供的token 以及页面数模糊获取images对 并将结果返回
+    path('getCeleryStatus/<int:task_id>', celery_view.get_celery_task_status_and_result,
+         name='get_celery_task_status_and_result')  # 通过celery task的id判断人物的执行情况如果结束可同时获取result
 ]
