@@ -41,7 +41,7 @@ def upload_file(request):
         return JsonResponse({'isSuccessful': False, 'message': 'io error on server'})
     source_image_url = nginx_image_url_root + file.name  # 用户上传照片的url地址
     result = swin_transformer_process_image.delay(user_id, source_image_url, file.name)
-    task_id = result.id
+    task_id: str = result.id
     return JsonResponse({
         'isSuccessful': True,
         'task_id': task_id,
