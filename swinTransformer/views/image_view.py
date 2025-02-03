@@ -1,19 +1,14 @@
-import json
 import os
 
 from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
-from exceptiongroup import catch
-from openxlab.model.common.constants import token
 
 from swinTransformer.tools.constant import nginx_image_dir, nginx_image_url_root
-from swinTransformer.tools.utils import process_image
 from swinTransformer.tools.cache import *
+from swinTransformer.tasks import swin_transformer_process_image
 
-from swinTransformer.tasks import send_custom_email
-from swinTransformer.models import User
 from swinTransformer.models import OriginalImage
 from swinTransformer.models import SegmentedImage
 
@@ -45,74 +40,12 @@ def upload_file(request):
         print(f'Error:{e}')
         return JsonResponse({'isSuccessful': False, 'message': 'io error on server'})
     source_image_url = nginx_image_url_root + file.name  # 用户上传照片的url地址
-    segmented_image_url = process_image(file.name)  # 分割后的照片的url地址
-    try:
-        with (transaction.atomic()):
-            if segmented_image_url == '':
-                return JsonResponse({'isSuccessful': False,
-                                     'message': 'something wrong in swin Transformer model'
-                                     })
-            original_image = OriginalImage.objects.create(image_path=source_image_url,
-                                                          user_id=user_id)
-            if original_image is None:
-                return JsonResponse({'isSuccessful': False,
-                                     'message': 'something wrong in data base'
-                                     })
-            s = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-            segmented_image = SegmentedImage.objects.create(
-                user_id=user_id,
-                original_image_id=original_image.id,
-                image_path=segmented_image_url,
-                created_at=s
-            )
-            if segmented_image is None:
-                return JsonResponse({'isSuccessful': False,
-                                     'message': 'something wrong in data base'
-                                     })
-            """
-            这里的所影响的缓存一定是 用户的最后一页缓存 所以需要获取到最后一页缓存的 key
-            如果需要清除缓存 那么用户一定经历过 get_images_by_page 函数
-            可以在 该函数内部操作数据库时 额外查询 COUNT(*)  获取我们需要的数据
-            并且 存储在全局的dict中 从而判断用户是否需要经理缓存逻辑
-            """
-
-            """
-            如果删除缓存的操作失败 该如何处理
-            考虑引入 消息队列处理 操作失败的情况
-            重试多次后仍失败考虑数据库的回滚
-            """
-            # 缓存更新逻辑
-            total_image_number = get_user_image_number(user_id)
-            # actually total_page_number can never be none
-            if total_image_number is not None:
-                page_number = total_image_number // settings.DEFAULT_LINES_PER_PAGE
-                left_image_number = total_image_number % settings.DEFAULT_LINES_PER_PAGE
-                if left_image_number != 0:
-                    page_number += 1
-                    delete_user_page(user_id, page_number)  # 如果没有缓存 nothing would happen
-                else:
-                    # 当最后一页的image是满的情况下应该是不需要删除缓存的
-                    pass
-                total_image_number += 1
-                set_user_image_number(user_id, total_image_number)
-            user: User = User.objects.filter(id=user_id).first()
-            # TODO 后续考虑将生成的图片通过邮件对用户进行展示
-            if user is not None:
-                subject = '欢迎使用'
-                template_name = 'work_done_info.html'
-                context = {'target': f'{settings.FRONTEND_ROOT}/detail', 'username': user.username, 'user_id': user.id,
-                           'image': segmented_image_url}
-                recipient_list = [user.email]
-                send_custom_email.delay(subject, template_name, context, recipient_list)
-            return JsonResponse({
-                'isSuccessful': True,
-                'source_image_id': original_image.id,
-                'source_image_url': source_image_url,
-                'segmented_image_url': segmented_image_url,
-                'message': 'success',
-            })
-    except Exception as e:
-        return Http404('test', e)
+    result = swin_transformer_process_image.delay(user_id, source_image_url, file.name)
+    task_id = result.id
+    return JsonResponse({
+        'isSuccessful': True,
+        'task_id': task_id,
+    })
 
 
 def removeImageFromArray(lst):
@@ -296,7 +229,7 @@ def get_images_by_token_and_page(request):
     search_info = json.loads(request.body)
     search_token = search_info.get('search_token')
     page_number = search_info.get('page_number')
-    cached_str = get_cached_token_page(user_id, token, page_number)
+    cached_str = get_cached_token_page(user_id, search_token, page_number)
     if cached_str is not None:
         cached_result = json.loads(cached_str)
         return JsonResponse({
