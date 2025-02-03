@@ -1,3 +1,4 @@
+import json
 import os
 
 from django.http import JsonResponse, HttpResponse, Http404
@@ -311,7 +312,15 @@ def get_images_by_token_and_page(request):
     target_segmented_images = []
     for vale in target_images:
         target_segmented_images.append(vale.get('image_path'))
+    result = {
+        'original_id_list': target_original_ids,
+        'original_images_list': target_original_images,
+        'segmented_images_list': target_segmented_images,
+        'page_number': page_length,
+    }
+    cache_token_page(user_id, search_token, page_number, result)
     return JsonResponse({
+        'isCached': False,
         'isSuccessful': True,
         'original_id_list': target_original_ids,
         'original_images_list': target_original_images,

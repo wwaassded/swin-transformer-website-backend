@@ -158,6 +158,10 @@ APP 中需要用到的常量值
 DEFAULT_LINES_PER_PAGE = 4
 MAX_PAGES_PER_USER = 10
 SWIN_TRANSFORMER = 'swin_transformer.py'
+PAGE_CACHE_FORMAT = 'page_cache:{user_id}-{page_number}-{lines_per_page}'
+PAGE_CACHE_SET_FORMAT = 'sorted_set:{user_id}'
+IMAGE_NUMBER_FORMAT = '{user_id}'
+TOKEN_PAGE_CACHE_EXPIRE_TIME = 60
 
 CELERY_BROKER_URL = "redis://127.0.0.1:8888/0"
 CELERY_TIMEZONE = TIME_ZONE
@@ -178,6 +182,8 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'wwssd507@gmail.com'
 EMAIL_HOST_PASSWORD = 'vhiemhbkuwbfgtlo'
 DEFAULT_FROM_EMAIL = 'wwssd507@gmail.com'
+UNVERIFIED_FORMAT = 'unverified:{token}'
+VERIFICATION_FORMAT = 'verification:{username}-{password}'
 EMAIL_VALIDATION_EXPIRE_TIME = 600
 DJANGO_ROOT = 'http://localhost:8000'
 FRONTEND_ROOT = 'http://localhost:7777'
