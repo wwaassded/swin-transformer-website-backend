@@ -127,4 +127,17 @@ def clear_verification(username: str, password: str):
 
 
 def cache_token_page(user_id: int, token: str, page: int, result: dict):
-    pass
+    conn = get_redis_connection('default')
+    token_page_cache_key = settings.TOKEN_PAGE_CACHE_FORMAT.format(user_id, token, page,
+                                                                   settings.DEFAULT_LINES_PER_PAGE)
+    return conn.set(token_page_cache_key, json.dumps(result), ex=settings.TOKEN_PAGE_CACHE_EXPIRE_TIME)
+
+
+def get_cached_token_page(user_id: int, token: str, page: int) -> str:
+    conn = get_redis_connection('default')
+    token_page_cache_key = settings.TOKEN_PAGE_CACHE_FORMAT.format(user_id, token, page,
+                                                                   settings.DEFAULT_LINES_PER_PAGE)
+    string = conn.get(token_page_cache_key)
+    if string is not None:
+        conn.set(token_page_cache_key, string, ex=settings.TOKEN_PAGE_CACHE_EXPIRE_TIME)
+    return string

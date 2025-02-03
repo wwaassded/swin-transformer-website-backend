@@ -158,6 +158,7 @@ APP 中需要用到的常量值
 DEFAULT_LINES_PER_PAGE = 4
 MAX_PAGES_PER_USER = 10
 SWIN_TRANSFORMER = 'swin_transformer.py'
+TOKEN_PAGE_CACHE_FORMAT = 'token_page_cache:{user_id}-{token}-{page_number}-{lines_per_page}'
 PAGE_CACHE_FORMAT = 'page_cache:{user_id}-{page_number}-{lines_per_page}'
 PAGE_CACHE_SET_FORMAT = 'sorted_set:{user_id}'
 IMAGE_NUMBER_FORMAT = '{user_id}'
