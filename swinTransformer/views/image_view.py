@@ -1,4 +1,5 @@
 import os
+import uuid
 
 from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
@@ -40,8 +41,8 @@ def upload_file(request):
         print(f'Error:{e}')
         return JsonResponse({'isSuccessful': False, 'message': 'io error on server'})
     source_image_url = nginx_image_url_root + file.name  # 用户上传照片的url地址
-    result = swin_transformer_process_image.delay(user_id, source_image_url, file.name)
-    task_id: str = result.id
+    task_id: str = str(uuid.uuid4())
+    swin_transformer_process_image.delay(task_id, user_id, source_image_url, file.name)
     return JsonResponse({
         'isSuccessful': True,
         'task_id': task_id,
