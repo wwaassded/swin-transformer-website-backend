@@ -12,7 +12,7 @@ class TaskConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.task_id = self.scope['url_route']['kwargs']['task_id']
-        self.group_name = settings.CHANNELS_GROUP_NAME_FORMAT.format(self.task_id)
+        self.group_name = settings.CHANNELS_GROUP_NAME_FORMAT.format(task_id=self.task_id)
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
@@ -24,4 +24,4 @@ class TaskConsumer(AsyncWebsocketConsumer):
         if message['status'] == 'completed':
             await self.send(text_data=message['result'])
         else:
-            await self.send(text_data='something wrong in celery or channels')
+            await self.send(text_data={'message': 'something wrong in celery or channels'})

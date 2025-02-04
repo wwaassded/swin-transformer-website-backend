@@ -33,7 +33,7 @@ def send_custom_email(self, subject, template_name, context, recipient_list):
         self.retry(exc=e, countdown=60)
 
 
-@shared_task(bind=True)
+@shared_task()
 def swin_transformer_process_image(task_id: str, user_id: int, source_image_url: str, original_img_name: str):
     segmented_image_url = process_image(original_img_name)
     try:
@@ -110,6 +110,6 @@ def swin_transformer_process_image(task_id: str, user_id: int, source_image_url:
     except Exception as e:
         inform_channels(task_id, json.dumps({
             'isSuccessful': False,
-            'message': e
+            'message': str(e)
         }))
         return
