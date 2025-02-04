@@ -8,16 +8,18 @@ from swinTransformer.models import OriginalImage
 
 def get_cached_page(user_id: int, page_number: int):
     conn = get_redis_connection('default')
-    cached_key = settings.PAGE_CACHE_FORMAT.format(user_id, page_number, settings.DEFAULT_LINES_PER_PAGE)
-    sort_cached_key = settings.PAGE_CACHE_SET_FORMAT.format(user_id)
+    cached_key = settings.PAGE_CACHE_FORMAT.format(user_id=user_id, page_number=page_number,
+                                                   lines_per_page=settings.DEFAULT_LINES_PER_PAGE)
+    sort_cached_key = settings.PAGE_CACHE_SET_FORMAT.format(user_id=user_id)
     current_time = time.time()
     conn.zadd(sort_cached_key, {page_number: current_time})  # 更新缓存的页面的score
     return conn.get(cached_key)
 
 
 def cache_user_page(user_id: int, page_number: int, page_content: str, all_image_number: int):
-    page_cached_key = settings.PAGE_CACHE_FORMAT.format(user_id, page_number, settings.DEFAULT_LINES_PER_PAGE)
-    sort_cached_key = settings.PAGE_CACHE_SET_FORMAT.format(user_id)
+    page_cached_key = settings.PAGE_CACHE_FORMAT.format(user_id=user_id, page_number=page_number,
+                                                        lines_per_page=settings.DEFAULT_LINES_PER_PAGE)
+    sort_cached_key = settings.PAGE_CACHE_SET_FORMAT.format(user_id=user_id)
     conn = get_redis_connection('default')
     current_time = time.time()
     conn.set(page_cached_key, page_content)
@@ -28,21 +30,23 @@ def cache_user_page(user_id: int, page_number: int, page_content: str, all_image
         oldest_pages = conn.zrange(sort_cached_key, 0, 0)
         if oldest_pages is not None:
             oldest_page_number = oldest_pages[0]
-            conn.delete(settings.PAGE_CACHE_FORMAT.format(user_id, oldest_page_number, settings.DEFAULT_LINES_PER_PAGE))
+            conn.delete(settings.PAGE_CACHE_FORMAT.format(user_id=user_id, page_number=oldest_page_number,
+                                                          lines_per_page=settings.DEFAULT_LINES_PER_PAGE))
             conn.zrem(sort_cached_key, oldest_page_number)
 
 
 def delete_user_page(user_id: int, page_number: int):
     conn = get_redis_connection('default')
-    page_cached_key = settings.PAGE_CACHE_FORMAT.format(user_id, page_number, settings.DEFAULT_LINES_PER_PAGE)
-    sort_cached_key = settings.PAGE_CACHE_SET_FORMAT.format(user_id)
+    page_cached_key = settings.PAGE_CACHE_FORMAT.format(user_id=user_id, page_number=page_number,
+                                                        lines_per_page=settings.DEFAULT_LINES_PER_PAGE)
+    sort_cached_key = settings.PAGE_CACHE_SET_FORMAT.format(user_id=user_id)
     conn.delete(page_cached_key)
     conn.zrem(sort_cached_key, page_number)
 
 
 def get_user_image_number(user_id: int) -> int:
     conn = get_redis_connection('default')
-    page_number_key = settings.IMAGE_NUMBER_FORMAT.format(user_id)
+    page_number_key = settings.IMAGE_NUMBER_FORMAT.format(user_id=user_id)
     bytes_data = conn.get(page_number_key)
     if bytes_data is None:
         bytes_data = len(OriginalImage.objects.filter(user_id=user_id) or [])
@@ -54,26 +58,27 @@ def get_user_image_number(user_id: int) -> int:
 
 def set_user_image_number(user_id: int, image_number: int):
     conn = get_redis_connection('default')
-    page_number_key = settings.IMAGE_NUMBER_FORMAT.format(user_id)
+    page_number_key = settings.IMAGE_NUMBER_FORMAT.format(user_id=user_id)
     conn.set(page_number_key, image_number)
 
 
 def delete_all_page_after_than(user_id: int, page_number: int):
     conn = get_redis_connection('default')
-    sort_cached_key = settings.PAGE_CACHE_SET_FORMAT.format(user_id)
+    sort_cached_key = settings.PAGE_CACHE_SET_FORMAT.format(user_id=user_id)
     sorted_page_number = conn.zrange(sort_cached_key, 0, -1, withscores=False)
     if sorted_page_number is not None:
         for page in sorted_page_number:
             page = int(page.decode('utf-8'))
             if page >= page_number:
                 conn.zrem(sort_cached_key, page)
-                page_cached_key = settings.PAGE_CACHE_FORMAT.format(user_id, page, settings.DEFAULT_LINES_PER_PAGE)
+                page_cached_key = settings.PAGE_CACHE_FORMAT.format(user_id=user_id, page_number=page,
+                                                                    lines_per_page=settings.DEFAULT_LINES_PER_PAGE)
                 conn.delete(page_cached_key)
 
 
 def cache_unverified_user(token: str, username: str, password: str, email: str) -> bool:
     conn = get_redis_connection('default')
-    unverified_user_key = settings.UNVERIFIED_FORMAT.format(token)
+    unverified_user_key = settings.UNVERIFIED_FORMAT.format(token=token)
     caching_dict = {
         'username': username,
         'password': password,
@@ -88,7 +93,7 @@ def cache_unverified_user(token: str, username: str, password: str, email: str) 
 
 def store_user_verification(username: str, password: str, verification: str):
     conn = get_redis_connection('default')
-    verification_store_key = settings.VERIFICATION_FORMAT.format(username, password)
+    verification_store_key = settings.VERIFICATION_FORMAT.format(username=username, password=password)
     return conn.set(
         verification_store_key,
         verification,
@@ -98,13 +103,13 @@ def store_user_verification(username: str, password: str, verification: str):
 
 def get_user_verification(username: str, password: str) -> str:
     conn = get_redis_connection('default')
-    verification_store_key = settings.VERIFICATION_FORMAT.format(username, password)
+    verification_store_key = settings.VERIFICATION_FORMAT.format(username=username, password=password)
     return conn.get(verification_store_key)
 
 
 def verify_user(token: str) -> str:
     conn = get_redis_connection('default')
-    unverified_user_key = settings.UNVERIFIED_FORMAT.format(token)
+    unverified_user_key = settings.UNVERIFIED_FORMAT.format(token=token)
     result = conn.get(unverified_user_key)
     # TODO result 的类型需要调试确定一下
     return result
@@ -118,25 +123,25 @@ def clear_verification(username: str, password: str):
     讲清楚缓存中的无用信息
     """
     conn = get_redis_connection('default')
-    verification_store_key = settings.VERIFICATION_FORMAT.format(username, password)
+    verification_store_key = settings.VERIFICATION_FORMAT.format(username=username, password=password)
     verification_token = conn.get(verification_store_key)
     if verification_token is not None:
         conn.delete(verification_store_key)
-        unverified_user_key = settings.UNVERIFIED_FORMAT.format(verification_token)
+        unverified_user_key = settings.UNVERIFIED_FORMAT.format(token=verification_token)
         conn.delete(unverified_user_key)
 
 
 def cache_token_page(user_id: int, token: str, page: int, result: dict):
     conn = get_redis_connection('default')
-    token_page_cache_key = settings.TOKEN_PAGE_CACHE_FORMAT.format(user_id, token, page,
-                                                                   settings.DEFAULT_LINES_PER_PAGE)
+    token_page_cache_key = settings.TOKEN_PAGE_CACHE_FORMAT.format(user_id=user_id, token=token, page_number=page,
+                                                                   lines_per_page=settings.DEFAULT_LINES_PER_PAGE)
     return conn.set(token_page_cache_key, json.dumps(result), ex=settings.TOKEN_PAGE_CACHE_EXPIRE_TIME)
 
 
 def get_cached_token_page(user_id: int, token: str, page: int) -> str:
     conn = get_redis_connection('default')
-    token_page_cache_key = settings.TOKEN_PAGE_CACHE_FORMAT.format(user_id, token, page,
-                                                                   settings.DEFAULT_LINES_PER_PAGE)
+    token_page_cache_key = settings.TOKEN_PAGE_CACHE_FORMAT.format(user_id=user_id, token=token, page_number=page,
+                                                                   lines_per_page=settings.DEFAULT_LINES_PER_PAGE)
     string = conn.get(token_page_cache_key)
     if string is not None:
         conn.set(token_page_cache_key, string, ex=settings.TOKEN_PAGE_CACHE_EXPIRE_TIME)

@@ -26,6 +26,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+ASGI_APPLICATION = 'swin.asgi.application'
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -39,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_celery_results',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -59,6 +62,15 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'swin.urls'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 8888)]
+        }
+    }
+}
 
 TEMPLATES = [
     {
@@ -88,7 +100,7 @@ DATABASES = {
         'NAME': 'swin',
         'USER': 'root',
         'PASSWORD': '2994899015',
-        'HOST': 'localhost',
+        'HOST': '127.0.0.1',
         'PORT': '3307'
     }
 }
@@ -162,6 +174,7 @@ TOKEN_PAGE_CACHE_FORMAT = 'token_page_cache:{user_id}-{token}-{page_number}-{lin
 PAGE_CACHE_FORMAT = 'page_cache:{user_id}-{page_number}-{lines_per_page}'
 PAGE_CACHE_SET_FORMAT = 'sorted_set:{user_id}'
 IMAGE_NUMBER_FORMAT = '{user_id}'
+CHANNELS_GROUP_NAME_FORMAT = 'task_{task_id}'
 TOKEN_PAGE_CACHE_EXPIRE_TIME = 60
 
 CELERY_BROKER_URL = "redis://127.0.0.1:8888/0"
