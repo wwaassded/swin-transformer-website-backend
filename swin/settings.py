@@ -100,7 +100,7 @@ DATABASES = {
         'NAME': 'swin',
         'USER': 'root',
         'PASSWORD': '2994899015',
-        'HOST': 'localhost',
+        'HOST': '127.0.0.1',
         'PORT': '3307'
     }
 }
