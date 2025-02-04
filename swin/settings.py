@@ -174,6 +174,7 @@ TOKEN_PAGE_CACHE_FORMAT = 'token_page_cache:{user_id}-{token}-{page_number}-{lin
 PAGE_CACHE_FORMAT = 'page_cache:{user_id}-{page_number}-{lines_per_page}'
 PAGE_CACHE_SET_FORMAT = 'sorted_set:{user_id}'
 IMAGE_NUMBER_FORMAT = '{user_id}'
+CHANNELS_GROUP_NAME_FORMAT = 'task_{task_id}'
 TOKEN_PAGE_CACHE_EXPIRE_TIME = 60
 
 CELERY_BROKER_URL = "redis://127.0.0.1:8888/0"
