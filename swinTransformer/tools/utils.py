@@ -33,15 +33,19 @@ def swinTransformerHandler(original_image: str, output_image: str) -> int:
     return result.returncode
 
 
-def inform_channels(task_id: str, content: str):
+async def async_inform_channels(task_id: str, content: str):
     channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send(
+    await channel_layer.group_send(
         settings.CHANNELS_GROUP_NAME_FORMAT.format(task_id=task_id),
         {
             'type': 'task_update',
             'message': {
                 'status': 'completed',
-                'result': content
+                'result': content,
             }
         }
-    ))
+    )
+
+
+def inform_channels(task_id: str, content: str):
+    async_to_sync(async_inform_channels)(task_id, content)
