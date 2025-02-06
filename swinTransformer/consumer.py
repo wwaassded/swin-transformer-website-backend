@@ -20,7 +20,7 @@ class TaskConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def task_update(self, event):
-        message = json.loads(event['message'])
+        message = event['message']
         if message['status'] == 'completed':
             await self.send(text_data=message['result'])
         else:
