@@ -1,16 +1,22 @@
-# 历史结果界面的模糊搜索
+# Fuzzy Search on the History Page
 
-* 因为功能相近的api应该保持相似性所以 返回值应该拥有统一的规定
+* APIs with similar functionality should behave similarly, so the search API returns the same
+  response structure as the regular paginated history API:
 
 ```json
 JsonResponse: {
-                "isSuccessful": 处理是否成功,
-                "isCached": 是否是redis缓存中获取的数据,
-                "original_id_list": 分割前图片的id数组,
-                "original_images_list": 分割前的图片数组,
-                "segmented_images_list": 分割后的图片数组,
-                "message": 具体的描述信息,
-                "isEmpty": 返回的结果是否是空值,
-                "page_number": 搜索结果的总页数
+                "isSuccessful": whether the request was processed successfully,
+                "isCached": whether the data came from the Redis cache,
+                "original_id_list": list of ids of the original (pre-segmentation) images,
+                "original_images_list": list of the original (pre-segmentation) images,
+                "segmented_images_list": list of the segmented images,
+                "message": detailed description,
+                "isEmpty": whether the result is empty,
+                "page_number": total number of pages of search results
             }
 ```
+
+* The three lists are aligned by index: `original_id_list[i]`, `original_images_list[i]`, and
+  `segmented_images_list[i]` all describe the same image pair.
+* `page_number` is the number of pages **for this search**, not for the whole history, so the
+  frontend can show the right pagination controls while a search is active.
